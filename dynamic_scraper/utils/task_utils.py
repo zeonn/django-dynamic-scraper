@@ -4,6 +4,7 @@ standard_library.install_aliases()
 from builtins import object
 import datetime, json
 import urllib.request, urllib.parse, http.client
+import os
 from scrapy.utils.project import get_project_settings
 settings = get_project_settings()
 from scrapyd.config import Config
@@ -20,6 +21,8 @@ class TaskUtils(object):
 
 
     def _run_spider(self, **kwargs):
+        scrapyd_host = os.environ.get('SCRAPYD_HOST', 'localhost')
+        scrapyd_port = os.environ.get('SCRAPYD_PORT', '6800')
         param_dict = {
             'project': 'default',
             'spider': kwargs['spider'],
@@ -29,14 +32,18 @@ class TaskUtils(object):
         }
         params = urllib.parse.urlencode(param_dict)
         headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain"}
-        conn = http.client.HTTPConnection("localhost:{}".format(scrapyd_port))
+        host = scrapyd_host + ':' + scrapyd_port
+        conn = http.client.HTTPConnection(host)
         conn.request("POST", "/schedule.json", params, headers)
         conn.getresponse()
 
 
     def _pending_jobs(self, spider):
         # Ommit scheduling new jobs if there are still pending jobs for same spider
-        resp = urllib.request.urlopen('http://localhost:{}/listjobs.json?project=default'.format(scrapyd_port))
+        scrapyd_host = os.environ.get('SCRAPYD_HOST', 'localhost')
+        scrapyd_port = os.environ.get('SCRAPYD_PORT', '6800')
+        url = 'http://{host}:{port}/listjobs.json?project=default'.format(host=scrapyd_host, port=scrapyd_port)
+        resp = urllib.request.urlopen(url)
         data = json.loads(resp.read().decode('utf-8'))
         if 'pending' in data:
             for item in data['pending']:
